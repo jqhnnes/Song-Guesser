@@ -1,26 +1,229 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #09090b;
+  --color-cream: #f6f1e7;
+  --color-mute: #a8a29a;
+  --color-coral: #ff4d3a;
+  --color-amber: #ffb020;
+  --color-mint: #3ee0a2;
+  --color-rose: #ff6b81;
+  --color-panel: #16151b;
+  --color-panel-2: #221f28;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
+  background: #050507;
+  color: var(--color-cream);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  overflow: hidden;
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: #ff4d3a;
+  color: white;
+}
+
+button,
+a,
+input {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+button {
+  font: inherit;
+}
+
+.stage {
+  height: 100dvh;
+  background:
+    radial-gradient(900px 480px at 50% -10%, rgba(255, 77, 58, 0.2), transparent 55%),
+    #050507;
+}
+
+.phone {
+  position: relative;
+  height: 100%;
+  width: min(100%, 480px);
+  margin-inline: auto;
+  background:
+    radial-gradient(420px 220px at 80% -10%, rgba(255, 176, 32, 0.08), transparent 60%),
+    #09090b;
+  overflow: hidden;
+  scrollbar-width: none;
+}
+
+.phone * {
+  scrollbar-width: none;
+}
+
+.phone *::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 860px) {
+  .stage {
+    display: grid;
+    place-items: center;
+    padding: 24px;
+  }
+
+  .phone {
+    height: min(920px, calc(100dvh - 48px));
+    width: 420px;
+    border-radius: 36px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 40px 120px rgba(0, 0, 0, 0.55);
+  }
+}
+
+.safe-top {
+  padding-top: max(16px, env(safe-area-inset-top));
+}
+
+.safe-bottom {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+.rise {
+  animation: rise 480ms ease both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 18px;
+}
+
+.eq i {
+  display: block;
+  width: 3px;
+  height: 100%;
+  border-radius: 99px;
+  background: #ffb020;
+  transform-origin: bottom;
+  transform: scaleY(0.35);
+}
+
+.eq-live i {
+  animation: eq 900ms ease-in-out infinite;
+}
+
+.eq-live i:nth-child(2) {
+  animation-delay: 120ms;
+}
+.eq-live i:nth-child(3) {
+  animation-delay: 240ms;
+}
+.eq-live i:nth-child(4) {
+  animation-delay: 80ms;
+}
+
+@keyframes eq {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.cover {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 18px;
+  color: white;
+  font-family: var(--font-display);
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  flex: none;
+}
+
+.cover span {
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent 42%);
+}
+
+.confetti {
+  position: absolute;
+  top: -8%;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  animation-name: confetti-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes confetti-fall {
+  to {
+    transform: translateY(105vh) rotate(280deg);
+    opacity: 0.2;
+  }
+}
+
+.countdown {
+  transform-origin: left;
+  animation: shrink 4.6s linear forwards;
+}
+
+@keyframes shrink {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .eq-live i,
+  .confetti,
+  .countdown,
+  .floaty {
+    animation: none !important;
+  }
+}
+
+.floaty {
+  animation: floaty 3.6s ease-in-out infinite;
+}
+
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
