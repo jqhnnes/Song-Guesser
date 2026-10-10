@@ -93,6 +93,8 @@ function row(
     nickname: player.nickname,
     isCorrect,
     relation,
+    gapChip: "none",
+    name: "none",
   };
 }
 

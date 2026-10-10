@@ -47,6 +47,10 @@ export type Player = {
   timeline: TimelineCard[];
   /** Cards this player won on a turn where they were the one placing. Tie-break only. */
   cardsWonAsActive: number;
+  /** Chips in hand. A bet spends one. A right bet returns it. */
+  coins: number;
+  /** Points from calling the title and an artist. */
+  namePoints: number;
 };
 
 export type Playback = {
@@ -60,6 +64,16 @@ export type ResultRow = {
   nickname: string;
   isCorrect: boolean;
   relation: "placed" | "missed" | "challenge" | "off" | "agreed";
+  /** Chip staked on a gap this round. */
+  gapChip?: "back" | "lost" | "none";
+  /** Title and artist call this round. */
+  name?: "hit" | "miss" | "none";
+};
+
+export type SongCall = {
+  playerId: string;
+  title: string;
+  artist: string;
 };
 
 export type PublicSong = {
@@ -114,6 +128,10 @@ export type GameState = {
   placementLocked: boolean;
   /** One player per gap. The active player's gap is never in this list. */
   claims: GapClaim[];
+  /** The active player's locked gap spent a chip. */
+  placementStaked: boolean;
+  /** Hidden title and artist calls. Scored at the reveal. */
+  calls: SongCall[];
   passedIds: string[];
   usedSongIds: string[];
   /** Current answer. Stripped by toPlayerView until reveal copies it into lastResult. */
@@ -130,6 +148,8 @@ export type PublicPlayer = {
   isLocal: boolean;
   cards: number;
   activeWins: number;
+  coins: number;
+  points: number;
   connected: boolean;
   timeline: TimelineCard[];
 };
@@ -162,11 +182,14 @@ export type PlayerView = {
     nickname: string;
     isHost: boolean;
     cards: number;
+    coins: number;
+    points: number;
     isActive: boolean;
     slot: number | null;
     passed: boolean;
     /** Gap this player claimed. Null when they have not challenged. */
     claim: number | null;
+    called: boolean;
   };
   /** Present only after the active player locks. The song title is still absent. */
   placement: {

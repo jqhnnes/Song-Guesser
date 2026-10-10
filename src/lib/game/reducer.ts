@@ -1,5 +1,6 @@
 import { getPlaylist, getSong } from "./songs";
-import { betweenLabel, chooseBotClaim, chooseBotSlot, insertCard, insertionIndex, maxGuessingRounds } from "./rules";
+import { songCallMatches } from "./names";
+import { betweenLabel, chooseBotClaim, chooseBotSlot, insertCard, insertionIndex, maxGuessingRounds, yearInGap } from "./rules";
 import { awardCard } from "./scoring";
 import type { GameState, RoundResult, Song, TimelineCard } from "./types";
 
@@ -75,6 +76,8 @@ function freshTurn(state: GameState, roundNumber: number, secret: Song, used: st
     placementSlot: null,
     placementLocked: false,
     claims: [],
+    placementStaked: false,
+    calls: [],
     passedIds: [],
     usedSongIds: used,
     secret,
@@ -142,6 +145,8 @@ export function reduceGame(state: GameState, action: GameAction): GameState {
       return claimGap(state, localPlayer(state)?.id ?? "", action.slot);
     case "PASS":
       return passTurn(state, localPlayer(state)?.id ?? "");
+    case "CALL":
+      return callSong(state, localPlayer(state)?.id ?? "", action.title, action.artist);
     case "BOT_ACT":
       return botAct(state, action.playerId);
     case "REVEAL":
@@ -177,7 +182,13 @@ function lockPlacement(state: GameState, playerId: string): GameState {
   if (playerId !== state.activePlayerId) return state;
   const active = activePlayer(state);
   if (!active || state.placementSlot > active.timeline.length) return state;
-  return { ...state, phase: "challenge", placementLocked: true };
+  const staked = spendCoin(state, playerId);
+  return {
+    ...(staked ?? state),
+    phase: "challenge",
+    placementLocked: true,
+    placementStaked: staked !== null,
+  };
 }
 
 function botPlace(state: GameState, playerId: string): GameState {
@@ -188,7 +199,52 @@ function botPlace(state: GameState, playerId: string): GameState {
     player.timeline.map((card) => card.year),
     state.secret.year,
   );
-  return lockPlacement({ ...state, placementSlot: slot }, player.id);
+  return maybeBotCall(lockPlacement({ ...state, placementSlot: slot }, player.id), player.id);
+}
+
+function spendCoin(state: GameState, playerId: string): GameState | null {
+  const player = state.players.find((item) => item.id === playerId);
+  if (!player || (player.coins ?? 0) < 1) return null;
+  return {
+    ...state,
+    players: state.players.map((item) => (item.id === playerId ? { ...item, coins: item.coins - 1 } : item)),
+  };
+}
+
+function callSong(state: GameState, playerId: string, title: string, artist: string): GameState {
+  if (state.phase !== "deciding" && state.phase !== "challenge") return state;
+  const player = state.players.find((item) => item.id === playerId);
+  if (!player || (state.calls ?? []).some((call) => call.playerId === playerId)) return state;
+  if (state.phase === "deciding" && player.id !== state.activePlayerId) return state;
+  const cleanTitle = title.replace(/\s+/g, " ").trim().slice(0, 80);
+  const cleanArtist = artist.replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!cleanTitle || !cleanArtist) return state;
+  const staked = spendCoin(state, playerId);
+  if (!staked) return state;
+  return { ...staked, calls: [...(staked.calls ?? []), { playerId, title: cleanTitle, artist: cleanArtist }] };
+}
+
+function maybeBotCall(state: GameState, playerId: string): GameState {
+  if (!state.secret || Math.random() > 0.4) return state;
+  const hit = Math.random() < 0.55;
+  return callSong(
+    state,
+    playerId,
+    hit ? state.secret.title : "No idea",
+    hit ? (state.secret.artist.split(",")[0]?.trim() ?? "No idea") : "No idea",
+  );
+}
+
+function gapChipFor(
+  state: GameState,
+  activeId: string,
+  playerId: string,
+  gapBack: Set<string>,
+): "back" | "lost" | "none" {
+  const staked =
+    (state.placementStaked && playerId === activeId) || state.claims.some((claim) => claim.playerId === playerId);
+  if (!staked) return "none";
+  return gapBack.has(playerId) ? "back" : "lost";
 }
 
 function alreadyAnswered(state: GameState, playerId: string) {
@@ -202,7 +258,9 @@ function claimGap(state: GameState, playerId: string, slot: number): GameState {
   if (!active || !player || player.id === active.id || alreadyAnswered(state, player.id)) return state;
   if (slot === state.placementSlot || slot < 0 || slot > active.timeline.length) return state;
   if (state.claims.some((claim) => claim.slot === slot)) return state;
-  return { ...state, claims: [...state.claims, { playerId: player.id, slot }] };
+  const staked = spendCoin(state, player.id);
+  if (!staked) return state;
+  return { ...staked, claims: [...staked.claims, { playerId: player.id, slot }] };
 }
 
 function passTurn(state: GameState, playerId: string): GameState {
@@ -223,8 +281,8 @@ function botAct(state: GameState, playerId: string): GameState {
     state.placementSlot,
     state.claims.map((claim) => claim.slot),
   );
-  if (choice === "pass") return passTurn(state, player.id);
-  return claimGap(state, player.id, choice);
+  if (choice === "pass" || player.coins < 1) return maybeBotCall(passTurn(state, player.id), player.id);
+  return maybeBotCall(claimGap(state, player.id, choice), player.id);
 }
 
 function startGame(state: GameState): GameState {
@@ -245,7 +303,13 @@ function startGame(state: GameState): GameState {
 
   const secretDraw = draw(state, []);
   if (!secretDraw.song) return { ...state, notice: "No playable songs in this crate." };
-  const players = state.players.map((player) => ({ ...player, timeline: [], cardsWonAsActive: 0 }));
+  const players = state.players.map((player) => ({
+    ...player,
+    timeline: [],
+    cardsWonAsActive: 0,
+    coins: 2,
+    namePoints: 0,
+  }));
 
   return freshTurn(
     { ...state, players, discarded: 0 },
@@ -280,6 +344,13 @@ function reveal(state: GameState): GameState {
   const owner = state.players.find((player) => player.id === ownerId) ?? null;
   const card = cardFromSong(song, state.roundNumber);
   const insertedAt = insertionIndex(active.timeline, song.year, state.roundNumber);
+  const gapBack = new Set<string>();
+  if (state.placementStaked && yearInGap(years, state.placementSlot, song.year)) gapBack.add(active.id);
+  for (const claim of state.claims) {
+    if (yearInGap(years, claim.slot, song.year)) gapBack.add(claim.playerId);
+  }
+  const calls = state.calls ?? [];
+  const nameHits = new Set(calls.filter((call) => songCallMatches(call, song)).map((call) => call.playerId));
 
   return {
     ...state,
@@ -289,9 +360,12 @@ function reveal(state: GameState): GameState {
     playback: IDLE_PLAYBACK,
     players: state.players.map((player) => {
       const wonActive = decision.award.type === "active" && player.id === active.id;
+      const named = nameHits.has(player.id);
       const next = {
         ...player,
         cardsWonAsActive: player.cardsWonAsActive + (wonActive ? 1 : 0),
+        coins: (player.coins ?? 0) + (gapBack.has(player.id) ? 1 : 0) + (named ? 1 : 0),
+        namePoints: (player.namePoints ?? 0) + (named ? 1 : 0),
       };
       if (player.id !== ownerId) return next;
       return { ...next, timeline: insertCard(player.timeline, card) };
@@ -309,7 +383,15 @@ function reveal(state: GameState): GameState {
       placement: insertCard(active.timeline, card),
       placedSongId: card.songId,
       timelineName: active.nickname,
-      rows: decision.rows,
+      rows: decision.rows.map((row) => ({
+        ...row,
+        gapChip: gapChipFor(state, active.id, row.playerId, gapBack),
+        name: calls.some((call) => call.playerId === row.playerId)
+          ? nameHits.has(row.playerId)
+            ? "hit"
+            : "miss"
+          : "none",
+      })),
       award: decision.award.type,
       ownerId,
       ownerName: owner?.nickname ?? null,
@@ -349,12 +431,20 @@ function playAgain(state: GameState): GameState {
     ...state,
     phase: "lobby",
     roundNumber: 0,
-    players: state.players.map((player) => ({ ...player, timeline: [], cardsWonAsActive: 0 })),
+    players: state.players.map((player) => ({
+      ...player,
+      timeline: [],
+      cardsWonAsActive: 0,
+      coins: 2,
+      namePoints: 0,
+    })),
     discarded: 0,
     activePlayerId: null,
     placementSlot: null,
     placementLocked: false,
     claims: [],
+    placementStaked: false,
+    calls: [],
     passedIds: [],
     usedSongIds: [],
     secret: null,
@@ -374,6 +464,7 @@ export type GameAction =
   | { type: "BOT_PLACE"; playerId: string }
   | { type: "CLAIM"; slot: number }
   | { type: "PASS" }
+  | { type: "CALL"; title: string; artist: string }
   | { type: "BOT_ACT"; playerId: string }
   | { type: "REVEAL" }
   | { type: "NEXT" }

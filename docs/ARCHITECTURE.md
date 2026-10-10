@@ -109,7 +109,9 @@ A wrong gap never receives the card. If the active player is wrong and nobody cl
 
 **Fixed rounds.** The table plays that many turns. The biggest collection wins.
 
-Tie-break, in order: most cards, then most cards won on a turn where that player was the one placing, then a shared win. `cardsWonAsActive` exists only for that tie-break.
+Tie-break, in order: most cards, then most name points, then most cards won on a turn where that player was the one placing, then a shared win.
+
+Each player starts with 2 chips. Locking a gap or claiming a different gap spends 1 chip. Calling the title and an artist spends another. A right gap returns its chip. A title and artist that are close enough return that chip and add 1 name point. A wrong bet keeps the chip. Passing is free. With no chips left, a player can still place on their own turn, and can still leave someone else's spot alone.
 
 ## 9. Database schema
 

@@ -11,6 +11,37 @@ export function avatarColor(id: string) {
   return AVATARS[hash];
 }
 
+export function ChipStack({ count, size = "md" }: { count: number; size?: "sm" | "md" }) {
+  const layers = Math.min(4, Math.max(count, 1));
+  const box = size === "sm" ? "h-7 w-7 text-[11px]" : "h-10 w-10 text-sm";
+  const lift = size === "sm" ? 5 : 8;
+  return (
+    <span
+      className="relative inline-block shrink-0"
+      style={{ width: size === "sm" ? 28 : 40, height: (size === "sm" ? 28 : 40) + (layers - 1) * lift }}
+      aria-label={`${count} chips`}
+    >
+      {Array.from({ length: layers }, (_, index) => (
+        <span
+          key={index}
+          className={cn(
+            "absolute left-0 grid place-items-center rounded-full border-2 border-dashed border-cream/90 bg-[radial-gradient(circle_at_50%_38%,#ffb4a8_0%,#ff4d3a_46%,#b42318_100%)] shadow-[inset_0_0_0_3px_rgba(9,9,11,0.55),0_2px_0_rgba(0,0,0,0.35)]",
+            box,
+            count === 0 && "border-white/20 bg-white/10 opacity-50 shadow-none",
+          )}
+          style={{ bottom: index * lift, zIndex: index }}
+        >
+          {index === layers - 1 ? (
+            <span className="font-display font-extrabold leading-none text-white">{count}</span>
+          ) : (
+            <span className="h-[58%] w-[58%] rounded-full border border-white/30" />
+          )}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export function Wordmark() {
   return (
     <span className="inline-flex items-center gap-2 text-sm font-semibold tracking-[0.16em] text-cream/80">

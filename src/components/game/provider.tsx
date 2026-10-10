@@ -46,6 +46,7 @@ type GameApi = {
   lock: () => void;
   claim: (slot: number) => void;
   pass: () => void;
+  callSong: (title: string, artist: string) => void;
   reveal: () => void;
   next: () => void;
   again: () => void;
@@ -153,7 +154,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const timer = window.setTimeout(() => {
       playReveal();
       dispatch({ type: "REVEAL" });
-    }, 2600);
+    }, 9000);
     return () => window.clearTimeout(timer);
   }, [firstCard, state?.roundNumber]);
 
@@ -265,6 +266,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "CLAIM", slot });
       },
       pass: () => dispatch({ type: "PASS" }),
+      callSong: (title, artist) => {
+        playLock();
+        dispatch({ type: "CALL", title, artist });
+      },
       reveal: () => {
         playReveal();
         dispatch({ type: "REVEAL" });

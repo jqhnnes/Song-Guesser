@@ -15,8 +15,8 @@ function uniqueName(name: string, taken: string[]) {
 
 const GUESTS = ["Sarah", "Tom", "Emma", "Noah", "Mia", "Leo", "Ava"];
 
-function makePlayer(input: Omit<Player, "connected" | "timeline" | "cardsWonAsActive">): Player {
-  return { ...input, connected: true, timeline: [], cardsWonAsActive: 0 };
+function makePlayer(input: Omit<Player, "connected" | "timeline" | "cardsWonAsActive" | "coins" | "namePoints">): Player {
+  return { ...input, connected: true, timeline: [], cardsWonAsActive: 0, coins: 2, namePoints: 0 };
 }
 
 export function createParty(input: {
@@ -64,6 +64,8 @@ export function createParty(input: {
     placementSlot: null,
     placementLocked: false,
     claims: [],
+    placementStaked: false,
+    calls: [],
     passedIds: [],
     usedSongIds: [],
     secret: null,
@@ -110,6 +112,8 @@ export function createDemo(nickname: string): GameState {
     placementSlot: null,
     placementLocked: false,
     claims: [],
+    placementStaked: false,
+    calls: [],
     passedIds: [],
     usedSongIds: [],
     secret: null,

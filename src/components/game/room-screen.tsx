@@ -7,6 +7,7 @@ import { useGame } from "@/components/game/provider";
 import {
   Avatar,
   Button,
+  ChipStack,
   Cover,
   Equalizer,
   Modal,
@@ -247,6 +248,7 @@ function FirstCard({ game }: { game: PlayerView }) {
           </h1>
           <p className="mt-3 text-mute">The timeline is empty, so the song lands here. Nobody can challenge it.</p>
           <NowPlaying game={game} />
+          {game.you.isActive ? <NameBet game={game} /> : null}
           <div className="mt-6 flex items-center gap-3 rounded-3xl border border-coral/40 bg-coral/10 px-4 py-4">
             <Cover mystery size={72} />
             <div>
@@ -272,7 +274,7 @@ function ActiveTurn({ game }: { game: PlayerView }) {
         footer={
           <div className="grid gap-2 pb-2">
             <Button onClick={lock} disabled={!picked}>
-              {picked ? "Lock it here" : "Tap a gap first"}
+              {picked ? (game.you.coins > 0 ? "Lock it here · 1 chip" : "Lock it here") : "Tap a gap first"}
             </Button>
             {game.canControl ? (
               <Button variant="ghost" onClick={playing ? pause : play}>
@@ -287,6 +289,7 @@ function ActiveTurn({ game }: { game: PlayerView }) {
           <h1 className="mt-2 font-display text-4xl font-extrabold leading-none">Where does it belong?</h1>
           <p className="mt-3 text-mute">Tap a gap on your timeline. You can change it until you lock.</p>
           <NowPlaying game={game} />
+          <NameBet game={game} />
           <CollectionMeter game={game} playerId={game.you.id} />
           <div className="mt-5">
             <Timeline cards={game.active?.timeline ?? []} selected={game.you.slot} canPlace onPlace={place} />
@@ -340,8 +343,12 @@ function ChallengeTurn({ game }: { game: PlayerView }) {
         <div className="rise">
           <p className="text-sm font-semibold tracking-[0.16em] text-amber">{`${name.toUpperCase()} PLACED IT`}</p>
           <h1 className="mt-2 font-display text-4xl font-extrabold leading-none">Move it, or leave it</h1>
-          <p className="mt-3 text-mute">The arrow points toward older songs. A taken gap stays locked.</p>
-          <GapBoard game={game} onClaim={acted ? undefined : claim} />
+          <p className="mt-3 text-mute">The arrow points toward older songs. A different gap costs 1 chip.</p>
+          {game.you.coins < 1 && !acted ? (
+            <p className="mt-3 text-sm font-semibold text-amber">No chip left. You can still leave their spot alone.</p>
+          ) : null}
+          <NameBet game={game} />
+          <GapBoard game={game} onClaim={acted || game.you.coins < 1 ? undefined : claim} />
         </div>
       </Screen>
     </div>
@@ -365,10 +372,50 @@ function WatchChallenge({ game }: { game: PlayerView }) {
           <p className="text-sm font-semibold tracking-[0.16em] text-amber">WAITING ON THE TABLE</p>
           <h1 className="mt-2 font-display text-4xl font-extrabold leading-none">{`${name}, your card is in`}</h1>
           <p className="mt-3 text-mute">The others can move it to a different gap, or leave your guess alone.</p>
+          <NameBet game={game} />
           <GapBoard game={game} />
         </div>
       </Screen>
     </div>
+  );
+}
+
+function NameBet({ game }: { game: PlayerView }) {
+  const { callSong } = useGame();
+  const [title, setTitle] = useState("");
+  const [artist, setArtist] = useState("");
+  if (game.you.called) {
+    return <p className="mt-4 text-sm font-semibold text-mint">Your name chip is in the pot.</p>;
+  }
+  if (game.you.coins < 1) {
+    return <p className="mt-4 text-sm text-mute">No chip left to call the song.</p>;
+  }
+  return (
+    <form
+      className="mt-4 rounded-3xl bg-panel px-4 py-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        callSong(title, artist);
+      }}
+    >
+      <p className="text-xs font-semibold tracking-[0.16em] text-amber">CALL THE SONG · 1 CHIP</p>
+      <p className="mt-1 text-sm text-mute">Title and artist. A close guess counts. A feature name is enough.</p>
+      <input
+        value={title}
+        onChange={(event) => setTitle(event.target.value.slice(0, 80))}
+        placeholder="Title"
+        className="mt-3 w-full rounded-2xl bg-ink px-4 py-3 text-base font-semibold outline-none ring-coral focus:ring-2"
+      />
+      <input
+        value={artist}
+        onChange={(event) => setArtist(event.target.value.slice(0, 80))}
+        placeholder="Artist"
+        className="mt-2 w-full rounded-2xl bg-ink px-4 py-3 text-base font-semibold outline-none ring-coral focus:ring-2"
+      />
+      <Button className="mt-3" type="submit" variant="secondary" disabled={!title.trim() || !artist.trim()}>
+        Bet the name
+      </Button>
+    </form>
   );
 }
 
@@ -586,7 +633,10 @@ function Results({ game }: { game: PlayerView }) {
                 <span className={row.relation === "agreed" ? "text-xl text-mute" : row.isCorrect ? "text-xl text-mint" : "text-xl text-rose"}>
                   {row.relation === "agreed" ? "·" : row.isCorrect ? "✓" : "✗"}
                 </span>
-                <span className="flex-1 font-semibold">{row.nickname}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">{row.nickname}</span>
+                  <span className="block text-sm text-mute">{betCopy(row)}</span>
+                </span>
                 <span className="text-mute">{relationCopy(row.relation)}</span>
               </li>
             ))}
@@ -643,7 +693,8 @@ function GameOver({ game }: { game: PlayerView }) {
                 <div className="flex items-center gap-3">
                   <span className="w-8 text-lg">{medal(player.rank)}</span>
                   <span className="flex-1 font-semibold">{player.nickname}</span>
-                  <span className="font-bold">{player.cards} cards</span>
+                  <ChipStack count={player.coins} size="sm" />
+                  <span className="font-bold">{player.cards} cards · {player.points} pts</span>
                 </div>
                 {player.timeline.length > 0 ? (
                   <ul className="mt-3 grid gap-1 pl-11 text-sm text-mute">
@@ -682,9 +733,16 @@ function RoundHeader({ game }: { game: PlayerView }) {
           {game.winMode === "rounds" ? <span className="text-2xl text-mute"> / {game.maxRounds}</span> : null}
         </h1>
         <p className="mt-2 text-sm font-semibold text-mute">{cardCountLabel(game.you.cards, game)}</p>
+        <div className="mt-2 flex items-center gap-3">
+          <ChipStack count={game.you.coins} />
+          <p className="text-sm font-semibold text-amber">{game.you.points} pts</p>
+        </div>
         {active && !active.isYou && activeCards !== undefined ? (
-          <p className="text-sm font-semibold text-cream">
-            {active.nickname} · {cardCountLabel(activeCards, game)}
+          <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-cream">
+            <span>
+              {active.nickname} · {cardCountLabel(activeCards, game)}
+            </span>
+            <ChipStack count={game.players.find((player) => player.id === active.id)?.coins ?? 0} size="sm" />
           </p>
         ) : null}
       </div>
@@ -729,7 +787,9 @@ function Leaderboard({ players }: { players: PublicPlayer[] }) {
           <li key={player.id} className="flex items-center gap-3 text-sm">
             <span className="w-5 text-mute">{player.rank}</span>
             <span className="flex-1 font-semibold">{player.nickname}</span>
-            <span>{player.cards}</span>
+            <ChipStack count={player.coins} size="sm" />
+            <span className="w-10 text-right text-amber">{player.points}</span>
+            <span className="w-6 text-right">{player.cards}</span>
           </li>
         ))}
       </ol>
@@ -740,14 +800,19 @@ function Leaderboard({ players }: { players: PublicPlayer[] }) {
 function rankPlayers(players: PublicPlayer[]) {
   const sorted = players
     .slice()
-    .sort((a, b) => b.cards - a.cards || b.activeWins - a.activeWins || a.nickname.localeCompare(b.nickname));
+    .sort(
+      (a, b) =>
+        b.cards - a.cards || b.points - a.points || b.activeWins - a.activeWins || a.nickname.localeCompare(b.nickname),
+    );
   let lastCards = Number.NaN;
+  let lastPoints = Number.NaN;
   let lastWins = Number.NaN;
   let rank = 0;
   return sorted.map((player, index) => {
-    if (player.cards !== lastCards || player.activeWins !== lastWins) {
+    if (player.cards !== lastCards || player.points !== lastPoints || player.activeWins !== lastWins) {
       rank = index + 1;
       lastCards = player.cards;
+      lastPoints = player.points;
       lastWins = player.activeWins;
     }
     return { ...player, rank };
@@ -776,6 +841,15 @@ function medal(rank: number) {
   if (rank === 2) return "🥈";
   if (rank === 3) return "🥉";
   return String(rank);
+}
+
+function betCopy(row: ResultRow) {
+  const parts: string[] = [];
+  if (row.name === "hit") parts.push("Named it +1");
+  if (row.name === "miss") parts.push("Name missed");
+  if (row.gapChip === "back") parts.push("Chip back");
+  if (row.gapChip === "lost") parts.push("Chip lost");
+  return parts.join(" · ");
 }
 
 function relationCopy(relation: ResultRow["relation"]) {

@@ -8,7 +8,16 @@ export function loadGame(): GameState | null {
     if (!raw) return null;
     const data = JSON.parse(raw) as GameState;
     if (!data || data.version !== 4 || !PHASES.includes(data.phase) || !data.code) return null;
-    return data;
+    return {
+      ...data,
+      calls: data.calls ?? [],
+      placementStaked: data.placementStaked ?? false,
+      players: data.players.map((player) => ({
+        ...player,
+        coins: typeof player.coins === "number" ? player.coins : 2,
+        namePoints: typeof player.namePoints === "number" ? player.namePoints : 0,
+      })),
+    };
   } catch {
     return null;
   }
